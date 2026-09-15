@@ -45,8 +45,8 @@ function Dashboard({ user, onLogout }) {
   const [donations, setDonations] = useState([]);
   const [source, setSource] = useState('loading');
   const [error, setError] = useState('');
-  const rankingUrl = `https://hmnat-livid.vercel.app/ranking/${encodeURIComponent(user.login_id)}`;
-  const graphUrl = `https://hmnat-livid.vercel.app/graph/${encodeURIComponent(user.login_id)}`;
+    const rankingUrl = `https://hmnat-livid.vercel.app/widget/ranking/${encodeURIComponent(user.login_id)}`;
+  const graphUrl = `https://hmnat-livid.vercel.app/widget/graph/${encodeURIComponent(user.login_id)}`;
   const [lastUpdated, setLastUpdated] = useState(null);
   const [popover, setPopover] = useState(null);
   const [settings, setSettings] = useState(false);
