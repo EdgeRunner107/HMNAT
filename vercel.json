@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/widget/ranking/:login_id",
+      "destination": "/index.html"
+    }
+  ]
+}
