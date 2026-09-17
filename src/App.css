@@ -670,6 +670,13 @@ tbody tr:hover {
   font-weight: 600;
   color: #52627a;
 }
+.donation-amount {
+  width: 120px;
+  font-weight: 700;
+  color: #52627a;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
 .chat-cell {
   white-space: normal;
   min-width: 180px;
@@ -701,6 +708,48 @@ tbody tr:hover {
   background: #ffedef;
   color: #dc6170;
 }
+.status-canceled {
+  background: #ffedef;
+  color: #c85262;
+}
+
+/* Donation management */
+.donation-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 108px;
+}
+.donation-actions button {
+  padding: 5px 9px;
+  border: 1px solid;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 500;
+  transition: background 0.15s;
+}
+.donation-actions .retry-button {
+  background: #eaf2ff;
+  border-color: #d2e2ff;
+  color: #3b78f2;
+}
+.retry-button:hover:not(:disabled) {
+  background: #dceaff;
+}
+.donation-actions .cancel-button {
+  background: #fff5f6;
+  border-color: #f5cdd3;
+  color: #c85262;
+}
+.cancel-button:hover:not(:disabled) {
+  background: #ffedef;
+}
+.donation-actions button:disabled {
+  cursor: wait;
+  opacity: 0.5;
+}
+
 .table-footer {
   border-top: 1px solid #edf1f6;
   padding: 15px 25px;

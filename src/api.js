@@ -74,6 +74,31 @@ export async function fetchDonations(loginId, { signal } = {}) {
   return donations;
 }
 
+async function updateDonation(loginId, donationId, action) {
+  const data = await requestJson(
+    `/api/u/${encodeURIComponent(loginId)}/donations/${encodeURIComponent(donationId)}/${action}`,
+    { method: 'POST' },
+  );
+  const donation = data.donation;
+  if (
+    !donation ||
+    String(donation.id) !== String(donationId) ||
+    typeof donation.executed !== 'boolean' ||
+    typeof donation.canceled !== 'boolean'
+  ) {
+    throw new Error('후원 처리 응답 형식이 올바르지 않습니다.');
+  }
+  return donation;
+}
+
+export function retryDonation(loginId, donationId) {
+  return updateDonation(loginId, donationId, 'retry');
+}
+
+export function cancelDonation(loginId, donationId) {
+  return updateDonation(loginId, donationId, 'cancel');
+}
+
 export async function fetchUserGoalProgress(loginId, { signal } = {}) {
   const data = await requestJson(`/api/u/${encodeURIComponent(loginId)}/goal-progress`, {
     signal,

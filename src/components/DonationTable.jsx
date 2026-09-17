@@ -1,4 +1,27 @@
-import { CalendarDays, ChevronDown, Landmark, Inbox, Check, Clock3 } from 'lucide-react';
+import {
+  CalendarDays,
+  ChevronDown,
+  Landmark,
+  Inbox,
+  Check,
+  Clock3,
+  X,
+} from 'lucide-react';
+
+export function getDonationStatus(row) {
+  if (row.canceled === true) return 'canceled';
+  if (row.executed === true) return 'complete';
+  return 'waiting';
+}
+
+const statusLabels = { complete: '완료', waiting: '대기', canceled: '취소' };
+const statusIcons = { complete: Check, waiting: Clock3, canceled: X };
+
+function formatAmount(amount) {
+  const value = Number(amount);
+  if (!Number.isFinite(value)) return '0원';
+  return `${value.toLocaleString('ko-KR')}원`;
+}
 
 export function formatDate(value) {
   if (!value) return '—';
@@ -20,7 +43,14 @@ export function formatDate(value) {
   return `${get('year')}. ${get('month')}. ${get('day')}. ${get('hour')}:${get('minute')}:${get('second')}`;
 }
 
-export default function DonationTable({ donations, loading, error }) {
+export default function DonationTable({
+  donations,
+  loading,
+  error,
+  actionLoadingIds,
+  onRetry,
+  onCancel,
+}) {
   return (
     <section
       className="card donation-card"
@@ -50,14 +80,16 @@ export default function DonationTable({ donations, loading, error }) {
               <th>종류</th>
               <th>시간</th>
               <th>이름</th>
+              <th>금액</th>
               <th>채팅</th>
               <th>실행여부</th>
+              <th>관리</th>
             </tr>
           </thead>
           <tbody>
             {donations.length === 0 && (
               <tr>
-                <td colSpan={5}>
+                <td colSpan={7}>
                   <div className="empty-state">
                     <Inbox size={30} />
                     <p>
@@ -71,27 +103,61 @@ export default function DonationTable({ donations, loading, error }) {
                 </td>
               </tr>
             )}
-            {donations.map((row) => (
-              <tr key={row.id}>
-                <td>
-                  <span className="donation-type">
-                    <Landmark size={15} />
-                    계좌후원
-                  </span>
-                </td>
-                <td className="date-cell">{formatDate(row.created_at)}</td>
-                <td className="name-cell">{row.donor_name || '익명'}</td>
-                <td className="chat-cell">{row.text || '—'}</td>
-                <td>
-                  <span
-                    className={`status ${row.executed === true ? 'status-complete' : 'status-waiting'}`}
-                  >
-                    {row.executed === true ? <Check size={12} /> : <Clock3 size={12} />}
-                    {row.executed === true ? '완료' : '대기'}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {donations.map((row) => {
+              const status = getDonationStatus(row);
+              const StatusIcon = statusIcons[status];
+              const actionLoading = actionLoadingIds.has(row.id);
+
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <span className="donation-type">
+                      <Landmark size={15} />
+                      계좌후원
+                    </span>
+                  </td>
+                  <td className="date-cell">{formatDate(row.created_at)}</td>
+                  <td className="name-cell">{row.donor_name || '익명'}</td>
+                  <td className="donation-amount">
+                    {formatAmount(row.amount)}
+                  </td>
+                  <td className="chat-cell">{row.text || '—'}</td>
+                  <td>
+                    <span className={`status status-${status}`}>
+                      <StatusIcon size={12} />
+                      {statusLabels[status]}
+                    </span>
+                  </td>
+                  <td>
+                    <div
+                      className="donation-actions"
+                      aria-busy={actionLoading}
+                    >
+                      {status !== 'waiting' && (
+                        <button
+                          type="button"
+                          className="retry-button"
+                          disabled={actionLoading}
+                          onClick={() => onRetry(row.id)}
+                        >
+                          재실행
+                        </button>
+                      )}
+                      {status !== 'canceled' && (
+                        <button
+                          type="button"
+                          className="cancel-button"
+                          disabled={actionLoading}
+                          onClick={() => onCancel(row.id)}
+                        >
+                          취소
+                        </button>
+                      )}
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>

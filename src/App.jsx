@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   Bell,
   ChevronDown,
@@ -13,8 +13,8 @@ import {
 import Sidebar from './components/Sidebar';
 import UrlCard from './components/UrlCard';
 import StatCard from './components/StatCard';
-import DonationTable from './components/DonationTable';
-import { fetchDonations } from './api';
+import DonationTable, { getDonationStatus } from './components/DonationTable';
+import { fetchDonations, retryDonation, cancelDonation } from './api';
 import LoginPage from './components/LoginPage';
 import { getLoginSession, setLoginSession, clearLoginSession } from './auth';
 
@@ -45,6 +45,11 @@ function Dashboard({ user, onLogout }) {
   const [donations, setDonations] = useState([]);
   const [source, setSource] = useState('loading');
   const [error, setError] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [actionLoadingIds, setActionLoadingIds] = useState(new Set());
+  const pendingActions = useRef(new Set());
+  const donationRevision = useRef(0);
+  const [refreshVersion, setRefreshVersion] = useState(0);
   const rankingUrl = `https://hmnat-livid.vercel.app/widget/ranking/${encodeURIComponent(user.login_id)}`;
   const graphUrl = `https://hmnat-livid.vercel.app/widget/graph/${encodeURIComponent(user.login_id)}`;
   const [lastUpdated, setLastUpdated] = useState(null);
@@ -55,9 +60,10 @@ function Dashboard({ user, onLogout }) {
     let timer;
     const controller = new AbortController();
     async function refresh() {
+      const revision = donationRevision.current;
       try {
         const result = await fetchDonations(user.login_id, { signal: controller.signal });
-        if (disposed) {
+        if (disposed || revision !== donationRevision.current) {
           return;
         }
         setDonations(result);
@@ -65,7 +71,7 @@ function Dashboard({ user, onLogout }) {
         setError('');
         setLastUpdated(new Date());
       } catch (error) {
-        if (!disposed) {
+        if (!disposed && revision === donationRevision.current) {
           setSource('offline');
           setError('후원 내역을 새로 불러오지 못했습니다. ' + error.message);
         }
@@ -79,7 +85,39 @@ function Dashboard({ user, onLogout }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [user.login_id]);
+  }, [user.login_id, refreshVersion]);
+
+  async function handleDonationAction(donationId, action) {
+    if (pendingActions.current.has(donationId)) return;
+    if (
+      action === 'cancel' &&
+      !window.confirm('이 입금을 방송 후원에서 제외하시겠습니까?')
+    ) {
+      return;
+    }
+
+    pendingActions.current.add(donationId);
+    setActionLoadingIds(new Set(pendingActions.current));
+    setActionError('');
+    try {
+      const update = action === 'retry' ? retryDonation : cancelDonation;
+      const donation = await update(user.login_id, donationId);
+      // Ignore any poll started before this update, then fetch the latest list.
+      donationRevision.current += 1;
+      setDonations((current) =>
+        current.map((row) => (row.id === donationId ? { ...row, ...donation } : row)),
+      );
+      setRefreshVersion((version) => version + 1);
+    } catch {
+      setActionError(
+        action === 'retry' ? '재실행 처리에 실패했습니다.' : '취소 처리에 실패했습니다.',
+      );
+    } finally {
+      pendingActions.current.delete(donationId);
+      setActionLoadingIds(new Set(pendingActions.current));
+    }
+  }
+
   useEffect(() => {
     const close = (event) => {
       if (event.key === 'Escape') {
@@ -90,8 +128,12 @@ function Dashboard({ user, onLogout }) {
     window.addEventListener('keydown', close);
     return () => window.removeEventListener('keydown', close);
   }, []);
-  const completed = donations.filter((item) => item.executed === true).length;
-  const waiting = donations.filter((item) => item.executed === false).length;
+  const completed = donations.filter(
+    (item) => getDonationStatus(item) === 'complete',
+  ).length;
+  const waiting = donations.filter(
+    (item) => getDonationStatus(item) === 'waiting',
+  ).length;
   return (
     <div
       className="app-shell"
@@ -233,10 +275,21 @@ function Dashboard({ user, onLogout }) {
               {error}
             </p>
           )}
+          {actionError && (
+            <p
+              className="donation-error"
+              role="alert"
+            >
+              {actionError}
+            </p>
+          )}
           <DonationTable
             donations={donations}
             loading={source === 'loading'}
             error={error}
+            actionLoadingIds={actionLoadingIds}
+            onRetry={(id) => handleDonationAction(id, 'retry')}
+            onCancel={(id) => handleDonationAction(id, 'cancel')}
           />
           <div className="info-note">
             <CircleHelp size={15} />
