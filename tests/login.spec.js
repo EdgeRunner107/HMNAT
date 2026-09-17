@@ -13,6 +13,23 @@ const donation = {
   executed_at: null,
 };
 
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/u/*/graph-settings', (route) => {
+    const loginId = decodeURIComponent(
+      new URL(route.request().url()).pathname.split('/')[3],
+    );
+    return route.fulfill({
+      json: {
+        ok: true,
+        login_id: loginId,
+        label: '후원목표',
+        color: '#3B82F6',
+        isDefault: true,
+      },
+    });
+  });
+});
+
 async function submitLogin(page) {
   await page.getByLabel('ID', { exact: true }).fill(` ${user.login_id} `);
   await page.getByLabel('Password', { exact: true }).fill('browser-test-password');

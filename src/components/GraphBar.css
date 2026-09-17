@@ -1,0 +1,99 @@
+.graph-bar {
+  --graph-color: #3b82f6;
+  box-sizing: border-box;
+  display: flex;
+  width: 100%;
+  max-width: 720px;
+  height: 42px;
+  overflow: hidden;
+  border: 2px solid #5f6670;
+  border-radius: 7px;
+  background: #f7f8fa;
+  box-shadow: 0 2px 5px rgba(24, 35, 52, 0.12);
+  color: #172033;
+  font-family: Pretendard, 'Malgun Gothic', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.graph-bar-label {
+  box-sizing: border-box;
+  display: flex;
+  flex: 0 1 28%;
+  align-items: center;
+  justify-content: center;
+  min-width: 110px;
+  max-width: 200px;
+  overflow: hidden;
+  padding: 0 12px;
+  background: var(--graph-color);
+  color: #fff;
+  font-size: clamp(11px, 2.5vw, 15px);
+  font-weight: 850;
+  line-height: 1;
+  text-align: center;
+  text-overflow: ellipsis;
+  text-shadow:
+    -1px -1px 0 rgba(0, 0, 0, 0.55),
+    1px -1px 0 rgba(0, 0, 0, 0.55),
+    -1px 1px 0 rgba(0, 0, 0, 0.55),
+    1px 1px 0 rgba(0, 0, 0, 0.55);
+  white-space: nowrap;
+}
+
+.graph-bar-track {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  background: #f4f5f7;
+}
+
+.graph-bar-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  max-width: 100%;
+  background-color: var(--graph-color);
+  background-image: repeating-linear-gradient(
+    -45deg,
+    transparent,
+    transparent 9px,
+    rgba(255, 255, 255, 0.2) 9px,
+    rgba(255, 255, 255, 0.2) 18px
+  );
+  transition: width 0.3s ease;
+}
+
+.graph-bar-amount {
+  position: absolute;
+  top: 50%;
+  right: 9px;
+  z-index: 1;
+  max-width: calc(100% - 14px);
+  overflow: hidden;
+  color: #111827;
+  font-size: clamp(8px, 2.5vw, 13px);
+  font-weight: 850;
+  line-height: 1;
+  text-overflow: ellipsis;
+  text-shadow:
+    -1px -1px 0 rgba(255, 255, 255, 0.95),
+    1px -1px 0 rgba(255, 255, 255, 0.95),
+    -1px 1px 0 rgba(255, 255, 255, 0.95),
+    1px 1px 0 rgba(255, 255, 255, 0.95);
+  transform: translateY(-50%);
+  white-space: nowrap;
+}
+
+@media (max-width: 320px) {
+  .graph-bar-label {
+    min-width: 96px;
+    max-width: 120px;
+    padding: 0 7px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .graph-bar-fill {
+    transition: none;
+  }
+}

@@ -13,38 +13,75 @@ const sample = {
   isToonStale: false,
 };
 
-test('personal graph polls one user endpoint every ten seconds and retains valid data on failures', async ({
+const settings = {
+  ok: true,
+  login_id: 'testuser',
+  label: '경석이 모금액',
+  color: '#31D663',
+  isDefault: false,
+};
+
+test('graph polls goal and settings independently every ten seconds and retains valid values', async ({
   page,
 }) => {
-  let mode = 'initial';
-  let requests = 0;
+  let goalMode = 'initial';
+  let settingsMode = 'initial';
+  let goalRequests = 0;
+  let settingsRequests = 0;
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
   await page.clock.install();
   await page.route('**/api/u/testuser/goal-progress', (route) => {
-    requests += 1;
+    goalRequests += 1;
     expect(route.request().method()).toBe('GET');
-    expect(new URL(route.request().url()).search).toBe('');
-    if (mode === 'error') return route.fulfill({ status: 500, json: { ok: false } });
-    if (mode === 'invalid') return route.fulfill({ json: { ok: true, totalAmount: 0 } });
-    if (mode === 'wrong-user')
-      return route.fulfill({ json: { ...sample, login_id: 'user2', totalAmount: 1 } });
-    const data =
-      mode === 'next'
-        ? {
-            ...sample,
-            toonAmount: 60000,
-            dbAmount: 60000,
-            totalAmount: 120000,
-            goalAmount: 1000000,
-            percent: 12,
-          }
-        : { ...sample, isToonStale: mode === 'stale' };
-    return route.fulfill({ json: data });
+    if (goalMode === 'error') {
+      return route.fulfill({ status: 500, json: { ok: false } });
+    }
+    if (goalMode === 'invalid') {
+      return route.fulfill({ json: { ok: true, totalAmount: 0 } });
+    }
+    if (goalMode === 'wrong-user') {
+      return route.fulfill({ json: { ...sample, login_id: 'user2' } });
+    }
+    return route.fulfill({
+      json:
+        goalMode === 'next'
+          ? {
+              ...sample,
+              toonAmount: 60000,
+              dbAmount: 60000,
+              totalAmount: 120000,
+              goalAmount: 1000000,
+              percent: 12,
+            }
+          : sample,
+    });
   });
+  await page.route('**/api/u/testuser/graph-settings', (route) => {
+    settingsRequests += 1;
+    expect(route.request().method()).toBe('GET');
+    if (settingsMode === 'error') {
+      return route.fulfill({ status: 503, json: { ok: false } });
+    }
+    if (settingsMode === 'invalid') {
+      return route.fulfill({ json: { ok: true, login_id: 'testuser' } });
+    }
+    return route.fulfill({
+      json:
+        settingsMode === 'next'
+          ? { ...settings, label: '오늘의 목표', color: '#FF5FA2' }
+          : settings,
+    });
+  });
+
   await page.goto('/widget/graph/testuser');
-  await expect(page.locator('.graph-widget-value')).toHaveText('61,900 (61.9%)');
+  await expect(page.locator('.graph-bar-label')).toHaveText('경석이 모금액');
+  await expect(page.locator('.graph-bar-amount')).toHaveText('61,900 / 100,000원');
   await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '61.9');
+  await expect(page.locator('.graph-bar-label')).toHaveCSS(
+    'background-color',
+    'rgb(49, 214, 99)',
+  );
   for (const selector of ['html', 'body', '#root']) {
     await expect(page.locator(selector)).toHaveCSS(
       'background-color',
@@ -52,21 +89,42 @@ test('personal graph polls one user endpoint every ten seconds and retains valid
     );
     await expect(page.locator(selector)).toHaveCSS('overflow', 'hidden');
   }
-  await expect(page.locator('.sidebar, .topbar, .ranking-widget, button')).toHaveCount(0);
-  for (const nextMode of ['initial', 'stale', 'error', 'invalid', 'wrong-user']) {
-    mode = nextMode;
-    const before = requests;
+  await expect(
+    page.locator('.sidebar, .topbar, .ranking-widget, button, input, select'),
+  ).toHaveCount(0);
+
+  for (const nextMode of ['error', 'invalid', 'wrong-user']) {
+    goalMode = nextMode;
+    const before = goalRequests;
     await page.clock.fastForward(10_100);
-    await expect.poll(() => requests).toBeGreaterThan(before);
-    await expect(page.locator('.graph-widget-value')).toHaveText('61,900 (61.9%)');
+    await expect.poll(() => goalRequests).toBeGreaterThan(before);
+    await expect(page.locator('.graph-bar-amount')).toHaveText('61,900 / 100,000원');
+    await expect(page.locator('.graph-bar-label')).toHaveText('경석이 모금액');
   }
-  mode = 'next';
+  goalMode = 'initial';
+  for (const nextMode of ['error', 'invalid']) {
+    settingsMode = nextMode;
+    const before = settingsRequests;
+    await page.clock.fastForward(10_100);
+    await expect.poll(() => settingsRequests).toBeGreaterThan(before);
+    await expect(page.locator('.graph-bar-label')).toHaveText('경석이 모금액');
+    await expect(page.locator('.graph-bar-amount')).toHaveText('61,900 / 100,000원');
+  }
+
+  goalMode = 'next';
+  settingsMode = 'next';
   await page.clock.fastForward(10_100);
-  await expect(page.locator('.graph-widget-value')).toHaveText('120,000 (12.0%)');
+  await expect(page.locator('.graph-bar-label')).toHaveText('오늘의 목표');
+  await expect(page.locator('.graph-bar-label')).toHaveCSS(
+    'background-color',
+    'rgb(255, 95, 162)',
+  );
+  await expect(page.locator('.graph-bar-amount')).toHaveText('120,000 / 1,000,000원');
+  await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '12');
   expect(errors).toEqual([]);
 });
 
-test('graph caps only bar width, stays compact at OBS/mobile sizes and restores admin styles', async ({
+test('graph caps progress width and stays compact at OBS/mobile sizes', async ({
   page,
 }) => {
   await page.route('**/api/u/testuser/goal-progress', (route) =>
@@ -81,23 +139,25 @@ test('graph caps only bar width, stays compact at OBS/mobile sizes and restores 
       },
     }),
   );
+  await page.route('**/api/u/testuser/graph-settings', (route) =>
+    route.fulfill({ json: settings }),
+  );
   for (const width of [720, 320, 240]) {
     await page.setViewportSize({ width, height: 100 });
     await page.goto('/widget/graph/testuser');
-    await expect(page.locator('.graph-widget-value')).toHaveText('10,500,000 (105.0%)');
+    await expect(page.locator('.graph-bar-amount')).toHaveText(
+      '10,500,000 / 10,000,000원',
+    );
     await expect(page.getByRole('progressbar')).toHaveAttribute('aria-valuenow', '100');
     const panel = await page.locator('.graph-widget').boundingBox();
-    const track = await page.locator('.graph-widget-track').boundingBox();
-    await expect(page.locator('.graph-widget-fill')).toHaveCSS(
-      'width',
-      `${track.width}px`,
-    );
+    const track = await page.locator('.graph-bar-track').boundingBox();
+    await expect(page.locator('.graph-bar-fill')).toHaveCSS('width', `${track.width}px`);
     expect(panel.width).toBeLessThanOrEqual(width);
-    expect(panel.height).toBeLessThanOrEqual(70);
+    expect(panel.height).toBeLessThanOrEqual(44);
     expect(
       await page.evaluate(() => document.documentElement.scrollWidth),
     ).toBeLessThanOrEqual(width);
-    await expect(page.locator('.graph-widget-value')).toBeInViewport();
+    await expect(page.locator('.graph-bar-amount')).toBeInViewport();
     await page.screenshot({
       path: `test-results/graph-widget-${width}.png`,
       omitBackground: true,
@@ -109,16 +169,24 @@ test('graph caps only bar width, stays compact at OBS/mobile sizes and restores 
   await expect(page.locator('html')).toHaveCSS('background-color', 'rgb(244, 247, 252)');
 });
 
-test('dashboard keeps exactly the encoded personal ranking and graph links', async ({
+test('dashboard keeps encoded widget links and loads its graph settings panel', async ({
   page,
 }) => {
-  const user = { id: 42, login_id: 'streamer+42', is_active: true, payment_date: null };
+  const user = {
+    id: 42,
+    login_id: 'streamer+42',
+    is_active: true,
+    payment_date: null,
+  };
   await page.addInitScript(
     (value) => localStorage.setItem('hmnat_user', JSON.stringify(value)),
     user,
   );
   await page.route('**/api/donations?*', (route) =>
     route.fulfill({ json: { ok: true, donations: [] } }),
+  );
+  await page.route('**/api/u/streamer%2B42/graph-settings', (route) =>
+    route.fulfill({ json: { ...settings, login_id: user.login_id } }),
   );
   await page.goto('/');
   await expect(page.locator('#ranking-url')).toHaveValue(
@@ -127,12 +195,13 @@ test('dashboard keeps exactly the encoded personal ranking and graph links', asy
   await expect(page.locator('#graph-url')).toHaveValue(
     'https://hmnat-livid.vercel.app/widget/graph/streamer%2B42',
   );
+  await expect(page.getByRole('heading', { name: '그래프바 설정' })).toBeVisible();
+  await expect(page.getByLabel('그래프 제목')).toHaveValue('경석이 모금액');
   await expect(page.locator('#goal-url')).toHaveCount(0);
   await expect(page.locator('.url-card')).toHaveCount(2);
-  await expect(page.getByText('추후 업데이트', { exact: true })).toHaveCount(0);
 });
 
-test('an initial failure shows a placeholder and recovers on the next poll', async ({
+test('initial failures use graph defaults and recover on the next poll', async ({
   page,
 }) => {
   let fail = true;
@@ -142,22 +211,41 @@ test('an initial failure shows a placeholder and recovers on the next poll', asy
       ? route.fulfill({ status: 503, json: { ok: false } })
       : route.fulfill({ json: sample }),
   );
+  await page.route('**/api/u/testuser/graph-settings', (route) =>
+    fail
+      ? route.fulfill({ status: 503, json: { ok: false } })
+      : route.fulfill({ json: settings }),
+  );
   await page.goto('/widget/graph/testuser');
-  await expect(page.locator('.graph-widget-value')).toHaveText('—');
+  await expect(page.locator('.graph-bar-label')).toHaveText('후원목표');
+  await expect(page.locator('.graph-bar-amount')).toHaveText('—');
   fail = false;
   await page.clock.fastForward(10_100);
-  await expect(page.locator('.graph-widget-value')).toHaveText('61,900 (61.9%)');
+  await expect(page.locator('.graph-bar-label')).toHaveText('경석이 모금액');
+  await expect(page.locator('.graph-bar-amount')).toHaveText('61,900 / 100,000원');
 });
 
-test('URL users including encoded IDs get separate amounts and no extra aggregate requests', async ({
+test('encoded URL users receive separate goal and settings requests', async ({
   page,
 }) => {
   const requests = [];
   await page.route('**/api/**', (route) => {
     const url = new URL(route.request().url());
-    expect(url.pathname).toMatch(/^\/api\/u\/[^/]+\/goal-progress$/);
-    const loginId = decodeURIComponent(url.pathname.split('/')[3]);
-    requests.push(loginId);
+    const match = url.pathname.match(
+      /^\/api\/u\/([^/]+)\/(goal-progress|graph-settings)$/,
+    );
+    expect(match).not.toBeNull();
+    const loginId = decodeURIComponent(match[1]);
+    requests.push({ loginId, endpoint: match[2] });
+    if (match[2] === 'graph-settings') {
+      return route.fulfill({
+        json: {
+          ...settings,
+          login_id: loginId,
+          label: loginId === 'testuser' ? '경석이 모금액' : '유나 목표',
+        },
+      });
+    }
     return route.fulfill({
       json:
         loginId === 'testuser'
@@ -173,12 +261,15 @@ test('URL users including encoded IDs get separate amounts and no extra aggregat
     });
   });
   await page.goto('/widget/graph/testuser');
-  await expect(page.locator('.graph-widget-value')).toHaveText('61,900 (61.9%)');
+  await expect(page.locator('.graph-bar-label')).toHaveText('경석이 모금액');
   const otherId = '방송+one/%';
   await page.goto(`/widget/graph/${encodeURIComponent(otherId)}/`);
-  await expect(page.locator('.graph-widget-value')).toHaveText('34,000 (34.0%)');
-  expect(requests).toContain('testuser');
-  expect(requests).toContain(otherId);
+  await expect(page.locator('.graph-bar-label')).toHaveText('유나 목표');
+  await expect(page.locator('.graph-bar-amount')).toHaveText('34,000 / 100,000원');
+  for (const loginId of ['testuser', otherId]) {
+    expect(requests).toContainEqual({ loginId, endpoint: 'goal-progress' });
+    expect(requests).toContainEqual({ loginId, endpoint: 'graph-settings' });
+  }
 });
 
 test('removed global URL has no widget and malformed graph IDs never request the API', async ({
@@ -193,7 +284,7 @@ test('removed global URL has no widget and malformed graph IDs never request the
   await expect(page.getByRole('button', { name: '로그인', exact: true })).toBeVisible();
   await expect(page.locator('.graph-widget, .goal-widget')).toHaveCount(0);
   await page.goto('/widget/graph/%20');
-  await expect(page.locator('.graph-widget-value')).toHaveText('—');
+  await expect(page.locator('.graph-bar-amount')).toHaveText('—');
   expect(requests).toBe(0);
 });
 

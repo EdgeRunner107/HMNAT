@@ -143,3 +143,39 @@ export async function fetchUserGoalProgress(loginId, { signal } = {}) {
   }
   return data;
 }
+
+function validateGraphSettings(data, loginId) {
+  if (
+    data.login_id !== loginId ||
+    typeof data.label !== 'string' ||
+    data.label.trim().length < 1 ||
+    data.label.trim().length > 20 ||
+    typeof data.color !== 'string' ||
+    !/^#[0-9A-Fa-f]{6}$/.test(data.color)
+  ) {
+    throw new Error('그래프 설정 응답 형식이 올바르지 않습니다.');
+  }
+  return {
+    label: data.label.trim(),
+    color: data.color.toUpperCase(),
+    isDefault: data.isDefault === true,
+  };
+}
+
+export async function fetchGraphSettings(loginId, { signal } = {}) {
+  const data = await requestJson(`/api/u/${encodeURIComponent(loginId)}/graph-settings`, {
+    signal,
+    cache: 'no-store',
+  });
+  return validateGraphSettings(data, loginId);
+}
+
+export async function saveGraphSettings(loginId, settings, { signal } = {}) {
+  const data = await requestJson(`/api/u/${encodeURIComponent(loginId)}/graph-settings`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+    signal,
+  });
+  return validateGraphSettings(data, loginId);
+}

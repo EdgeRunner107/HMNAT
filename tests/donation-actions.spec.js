@@ -44,6 +44,17 @@ async function openDashboard(page) {
       }
       return route.fulfill({ json: { ok: true, donations: rows } });
     }
+    if (url.pathname.endsWith('/graph-settings') && request.method() === 'GET') {
+      return route.fulfill({
+        json: {
+          ok: true,
+          login_id: user.login_id,
+          label: '후원목표',
+          color: '#3B82F6',
+          isDefault: true,
+        },
+      });
+    }
     const match = url.pathname.match(
       /^\/api\/u\/([^/]+)\/donations\/(\d+)\/(retry|cancel)$/,
     );

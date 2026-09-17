@@ -15,6 +15,7 @@ import UrlCard from './components/UrlCard';
 import StatCard from './components/StatCard';
 import DonationTable, { getDonationStatus } from './components/DonationTable';
 import ManualDonationForm from './components/ManualDonationForm';
+import GraphSettingsPanel from './components/GraphSettingsPanel';
 import {
   fetchDonations,
   createManualDonation,
@@ -247,10 +248,13 @@ function Dashboard({ user, onLogout }) {
             id="widgets"
           >
             <UrlCard url={rankingUrl} />
-            <UrlCard
-              graph
-              url={graphUrl}
-            />
+            <div className="graph-url-stack">
+              <UrlCard
+                graph
+                url={graphUrl}
+              />
+              <GraphSettingsPanel loginId={user.login_id} />
+            </div>
           </div>
           <div className="section-label">
             <h2>후원 한눈에 보기</h2>

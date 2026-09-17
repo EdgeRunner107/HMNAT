@@ -32,6 +32,18 @@ async function openDashboard(page) {
       });
     }
 
+    if (url.pathname.endsWith('/graph-settings') && request.method() === 'GET') {
+      return route.fulfill({
+        json: {
+          ok: true,
+          login_id: user.login_id,
+          label: '후원목표',
+          color: '#3B82F6',
+          isDefault: true,
+        },
+      });
+    }
+
     if (url.pathname === `/api/u/${encodeURIComponent(user.login_id)}/manual-donations`) {
       const input = request.postDataJSON();
       state.creates.push(input);

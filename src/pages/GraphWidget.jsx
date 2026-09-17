@@ -1,9 +1,11 @@
 import { useEffect, useLayoutEffect, useState } from 'react';
-import { fetchUserGoalProgress } from '../api';
+import { fetchGraphSettings, fetchUserGoalProgress } from '../api';
+import GraphBar, { DEFAULT_GRAPH_SETTINGS } from '../components/GraphBar';
 import './GraphWidget.css';
 
 export default function GraphWidget({ loginId }) {
   const [snapshot, setSnapshot] = useState(null);
+  const [graphSettings, setGraphSettings] = useState(DEFAULT_GRAPH_SETTINGS);
   // A changed user must never briefly see the previous user's amount.
   const progress = snapshot?.login_id === loginId ? snapshot : null;
 
@@ -21,18 +23,29 @@ export default function GraphWidget({ loginId }) {
     let timer;
     const controller = new AbortController();
     setSnapshot(null);
+    setGraphSettings(DEFAULT_GRAPH_SETTINGS);
 
     async function refresh() {
-      try {
-        const result = await fetchUserGoalProgress(loginId, {
-          signal: controller.signal,
+      const progressRequest = fetchUserGoalProgress(loginId, {
+        signal: controller.signal,
+      })
+        .then((result) => {
+          if (!disposed) setSnapshot(result);
+        })
+        .catch((error) => {
+          if (!disposed) console.error('[GRAPH WIDGET] goal progress', error);
         });
-        if (!disposed) setSnapshot(result);
-      } catch (error) {
-        if (!disposed) console.error('[GRAPH WIDGET]', error);
-      } finally {
-        if (!disposed) timer = setTimeout(refresh, 10_000);
-      }
+      const settingsRequest = fetchGraphSettings(loginId, {
+        signal: controller.signal,
+      })
+        .then((result) => {
+          if (!disposed) setGraphSettings(result);
+        })
+        .catch((error) => {
+          if (!disposed) console.error('[GRAPH WIDGET] graph settings', error);
+        });
+      await Promise.allSettled([progressRequest, settingsRequest]);
+      if (!disposed) timer = setTimeout(refresh, 10_000);
     }
 
     if (loginId.trim()) refresh();
@@ -43,33 +56,14 @@ export default function GraphWidget({ loginId }) {
     };
   }, [loginId]);
 
-  const display = progress
-    ? `${progress.totalAmount.toLocaleString('ko-KR')} (${progress.percent.toFixed(1)}%)`
-    : '—';
-
   return (
-    <section
-      className="graph-widget"
-      aria-label="개인 후원 목표"
-    >
-      <div className="graph-widget-summary">
-        <span className="graph-widget-title">HM</span>
-        <span className="graph-widget-value">{display}</span>
-      </div>
-      <div
-        className="graph-widget-track"
-        role="progressbar"
-        aria-label="개인 후원 목표 달성률"
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={Math.min(progress?.percent ?? 0, 100)}
-        aria-valuetext={progress ? display : '후원 금액을 불러오는 중'}
-      >
-        <div
-          className="graph-widget-fill"
-          style={{ width: `${Math.min(progress?.percent ?? 0, 100)}%` }}
-        />
-      </div>
+    <section className="graph-widget">
+      <GraphBar
+        label={graphSettings.label}
+        color={graphSettings.color}
+        totalAmount={progress?.totalAmount}
+        goalAmount={progress?.goalAmount}
+      />
     </section>
   );
 }
