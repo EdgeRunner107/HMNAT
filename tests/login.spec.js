@@ -48,7 +48,16 @@ test('실제 API 요청 형식, 로그인 상태 유지, 상태 갱신과 오류
       });
     }
     await route.fulfill({
-      json: { ok: true, donations: [{ ...donation, executed: mode === 'complete' }] },
+      json: {
+        ok: true,
+        donations: [
+          {
+            ...donation,
+            executed: mode === 'complete',
+            executed_at: mode === 'complete' ? '2026-09-15T05:32:00Z' : null,
+          },
+        ],
+      },
     });
   });
   await page.goto('/');
@@ -72,7 +81,9 @@ test('실제 API 요청 형식, 로그인 상태 유지, 상태 갱신과 오류
   );
   await expect(page.locator('.status-waiting')).toBeVisible();
   mode = 'complete';
-  await expect(page.locator('.status-complete')).toHaveText('완료', { timeout: 7000 });
+  await expect(page.locator('.status-complete')).toHaveText('svg완료', {
+    timeout: 7000,
+  });
   await expect(page.getByRole('alert')).toHaveCount(0);
   await expect(page.locator('.stat-card.yellow .stat-value')).toHaveText('0건');
   await expect(page.locator('.stat-card.green .stat-value')).toHaveText('1건');

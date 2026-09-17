@@ -10,12 +10,23 @@ import {
 
 export function getDonationStatus(row) {
   if (row.canceled === true) return 'canceled';
+  if (row.executed === true && !row.executed_at) return 'manual-pending';
   if (row.executed === true) return 'complete';
   return 'waiting';
 }
 
-const statusLabels = { complete: '완료', waiting: '대기', canceled: '취소' };
-const statusIcons = { complete: Check, waiting: Clock3, canceled: X };
+const statusLabels = {
+  complete: 'svg완료',
+  waiting: '대기',
+  'manual-pending': '미실행',
+  canceled: '취소',
+};
+const statusIcons = {
+  complete: Check,
+  waiting: Clock3,
+  'manual-pending': Clock3,
+  canceled: X,
+};
 
 function formatAmount(amount) {
   const value = Number(amount);
@@ -48,6 +59,7 @@ export default function DonationTable({
   loading,
   error,
   actionLoadingIds,
+  onRun,
   onRetry,
   onCancel,
 }) {
@@ -118,9 +130,7 @@ export default function DonationTable({
                   </td>
                   <td className="date-cell">{formatDate(row.created_at)}</td>
                   <td className="name-cell">{row.donor_name || '익명'}</td>
-                  <td className="donation-amount">
-                    {formatAmount(row.amount)}
-                  </td>
+                  <td className="donation-amount">{formatAmount(row.amount)}</td>
                   <td className="chat-cell">{row.text || '—'}</td>
                   <td>
                     <span className={`status status-${status}`}>
@@ -133,7 +143,17 @@ export default function DonationTable({
                       className="donation-actions"
                       aria-busy={actionLoading}
                     >
-                      {status !== 'waiting' && (
+                      {status === 'manual-pending' && (
+                        <button
+                          type="button"
+                          className="run-button"
+                          disabled={actionLoading}
+                          onClick={() => onRun(row.id)}
+                        >
+                          실행
+                        </button>
+                      )}
+                      {['complete', 'canceled'].includes(status) && (
                         <button
                           type="button"
                           className="retry-button"

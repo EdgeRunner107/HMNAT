@@ -90,7 +90,7 @@ test('상태 우선순위, 관리 버튼, 취소 제외 통계와 모바일 테�
   const completed = rowFor(page, '완료후원');
   const waiting = rowFor(page, '대기후원');
   await expect(page.getByRole('columnheader', { name: '관리' })).toBeVisible();
-  await expect(completed.locator('.status')).toHaveText('완료');
+  await expect(completed.locator('.status')).toHaveText('svg완료');
   await expect(completed.getByRole('button')).toHaveText(['재실행', '취소']);
   await expect(waiting.locator('.status')).toHaveText('대기');
   await expect(waiting.getByRole('button')).toHaveText(['취소']);
@@ -129,8 +129,9 @@ test('완료 → 재실행 → 자동 완료 갱신 → 취소 → 복원과 즉
   await expect.poll(() => state.listRequests).toBeGreaterThan(beforeRetry);
   expect(state.rows[0].executed_at).toBeNull();
   state.rows[0].executed = true;
+  state.rows[0].executed_at = '2026-09-15T05:33:00Z';
   await page.clock.fastForward(3100);
-  await expect(row.locator('.status')).toHaveText('완료');
+  await expect(row.locator('.status')).toHaveText('svg완료');
 
   page.once('dialog', async (dialog) => {
     expect(dialog.message()).toBe('이 입금을 방송 후원에서 제외하시겠습니까?');
@@ -199,7 +200,7 @@ for (const action of ['retry', 'cancel']) {
       state.failure = failure;
       await row.getByRole('button', { name: label, exact: true }).click();
       await expect(page.getByRole('alert')).toHaveText(`${label} 처리에 실패했습니다.`);
-      await expect(row.locator('.status')).toHaveText('완료');
+      await expect(row.locator('.status')).toHaveText('svg완료');
       await expect(page.locator('tbody tr')).toHaveCount(4);
       await expect(row.getByRole('button', { name: label, exact: true })).toBeEnabled();
     }

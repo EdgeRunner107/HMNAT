@@ -1,7 +1,7 @@
 import { sanitizeUser } from './auth';
 
 export const API_BASE = (
-  import.meta.env.VITE_API_BASE || 'http://localhost:3000'
+  import.meta.env.VITE_API_BASE || 'https://hmnation.onrender.com'
 ).replace(/\/$/, '');
 
 async function requestJson(path, { signal, ...options } = {}) {
@@ -95,8 +95,34 @@ export function retryDonation(loginId, donationId) {
   return updateDonation(loginId, donationId, 'retry');
 }
 
+export function runDonation(loginId, donationId) {
+  return updateDonation(loginId, donationId, 'run');
+}
+
 export function cancelDonation(loginId, donationId) {
   return updateDonation(loginId, donationId, 'cancel');
+}
+
+export async function createManualDonation(loginId, input) {
+  const data = await requestJson(
+    `/api/u/${encodeURIComponent(loginId)}/manual-donations`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    },
+  );
+  const donation = data.donation;
+  if (
+    data.login_id !== loginId ||
+    !donation ||
+    donation.id == null ||
+    typeof donation.executed !== 'boolean' ||
+    typeof donation.canceled !== 'boolean'
+  ) {
+    throw new Error('수동 후원 응답 형식이 올바르지 않습니다.');
+  }
+  return donation;
 }
 
 export async function fetchUserGoalProgress(loginId, { signal } = {}) {

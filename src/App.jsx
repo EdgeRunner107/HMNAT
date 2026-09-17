@@ -14,7 +14,14 @@ import Sidebar from './components/Sidebar';
 import UrlCard from './components/UrlCard';
 import StatCard from './components/StatCard';
 import DonationTable, { getDonationStatus } from './components/DonationTable';
-import { fetchDonations, retryDonation, cancelDonation } from './api';
+import ManualDonationForm from './components/ManualDonationForm';
+import {
+  fetchDonations,
+  createManualDonation,
+  runDonation,
+  retryDonation,
+  cancelDonation,
+} from './api';
 import LoginPage from './components/LoginPage';
 import { getLoginSession, setLoginSession, clearLoginSession } from './auth';
 
@@ -100,7 +107,11 @@ function Dashboard({ user, onLogout }) {
     setActionLoadingIds(new Set(pendingActions.current));
     setActionError('');
     try {
-      const update = action === 'retry' ? retryDonation : cancelDonation;
+      const update = {
+        run: runDonation,
+        retry: retryDonation,
+        cancel: cancelDonation,
+      }[action];
       const donation = await update(user.login_id, donationId);
       // Ignore any poll started before this update, then fetch the latest list.
       donationRevision.current += 1;
@@ -110,12 +121,26 @@ function Dashboard({ user, onLogout }) {
       setRefreshVersion((version) => version + 1);
     } catch {
       setActionError(
-        action === 'retry' ? '재실행 처리에 실패했습니다.' : '취소 처리에 실패했습니다.',
+        action === 'run'
+          ? '실행 요청에 실패했습니다.'
+          : action === 'retry'
+            ? '재실행 처리에 실패했습니다.'
+            : '취소 처리에 실패했습니다.',
       );
     } finally {
       pendingActions.current.delete(donationId);
       setActionLoadingIds(new Set(pendingActions.current));
     }
+  }
+
+  async function handleManualDonationCreate(input) {
+    const donation = await createManualDonation(user.login_id, input);
+    donationRevision.current += 1;
+    setDonations((current) => [
+      donation,
+      ...current.filter((row) => String(row.id) !== String(donation.id)),
+    ]);
+    setRefreshVersion((version) => version + 1);
   }
 
   useEffect(() => {
@@ -131,8 +156,8 @@ function Dashboard({ user, onLogout }) {
   const completed = donations.filter(
     (item) => getDonationStatus(item) === 'complete',
   ).length;
-  const waiting = donations.filter(
-    (item) => getDonationStatus(item) === 'waiting',
+  const waiting = donations.filter((item) =>
+    ['waiting', 'manual-pending'].includes(getDonationStatus(item)),
   ).length;
   return (
     <div
@@ -283,11 +308,13 @@ function Dashboard({ user, onLogout }) {
               {actionError}
             </p>
           )}
+          <ManualDonationForm onCreate={handleManualDonationCreate} />
           <DonationTable
             donations={donations}
             loading={source === 'loading'}
             error={error}
             actionLoadingIds={actionLoadingIds}
+            onRun={(id) => handleDonationAction(id, 'run')}
             onRetry={(id) => handleDonationAction(id, 'retry')}
             onCancel={(id) => handleDonationAction(id, 'cancel')}
           />
