@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useState } from 'react';
 import { API_BASE } from '../api';
 import './RankingWidget.css';
 
@@ -6,6 +6,16 @@ const medals = ['🥇', '🥈', '🥉'];
 
 export default function RankingWidget({ loginId }) {
   const [ranking, setRanking] = useState([]);
+
+  useLayoutEffect(() => {
+    document.documentElement.classList.add('ranking-widget-page');
+    document.body.classList.add('ranking-widget-body');
+
+    return () => {
+      document.documentElement.classList.remove('ranking-widget-page');
+      document.body.classList.remove('ranking-widget-body');
+    };
+  }, []);
 
   useEffect(() => {
     let disposed = false;

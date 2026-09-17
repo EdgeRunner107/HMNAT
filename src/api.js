@@ -1,7 +1,7 @@
 import { sanitizeUser } from './auth';
 
 export const API_BASE = (
-  import.meta.env.VITE_API_BASE || 'https://hmnation.onrender.com'
+  import.meta.env.VITE_API_BASE || 'http://localhost:3000'
 ).replace(/\/$/, '');
 
 async function requestJson(path, { signal, ...options } = {}) {
@@ -72,4 +72,23 @@ export async function fetchDonations(loginId, { signal } = {}) {
     throw new Error('후원 내역 응답 형식이 올바르지 않습니다.');
   }
   return donations;
+}
+
+export async function fetchUserGoalProgress(loginId, { signal } = {}) {
+  const data = await requestJson(`/api/u/${encodeURIComponent(loginId)}/goal-progress`, {
+    signal,
+    cache: 'no-store',
+  });
+  if (
+    data.login_id !== loginId ||
+    !['toonAmount', 'dbAmount', 'totalAmount', 'goalAmount'].every(
+      (key) => Number.isSafeInteger(data[key]) && data[key] >= 0,
+    ) ||
+    data.goalAmount === 0 ||
+    !Number.isFinite(data.percent) ||
+    data.percent < 0
+  ) {
+    throw new Error('후원 목표 응답 형식이 올바르지 않습니다.');
+  }
+  return data;
 }

@@ -34,6 +34,7 @@ export default function UrlCard({ graph = false, url }) {
     }
   }
   const Icon = graph ? ChartNoAxesColumnIncreasing : Link2;
+  const inputId = graph ? 'graph-url' : 'ranking-url';
   return (
     <section className={`url-card card ${graph ? 'purple' : ''}`}>
       <div className="url-heading">
@@ -41,23 +42,20 @@ export default function UrlCard({ graph = false, url }) {
           <Icon size={23} />
         </div>
         <div>
-          <h2>
-            {graph ? '그래프바 위젯 URL' : '후원자막 / 후원랭킹리스트 URL'}
-            {graph && <span className="soon">추후 업데이트</span>}
-          </h2>
+          <h2>{graph ? '그래프바 위젯 URL' : '후원자막 / 후원랭킹리스트 URL'}</h2>
           <p>
             {graph
-              ? '후원 현황을 그래프로 표시하는 위젯 URL입니다.'
+              ? '내 계좌후원과 Toonation 금액을 합산하는 후원 목표 그래프입니다.'
               : '방송에 표시할 후원자막과 후원 랭킹 리스트를 위한 URL입니다.'}
           </p>
         </div>
         <span className="url-hint">
           <Sparkles size={13} />
-          {graph ? '곧 업데이트될 예정이에요!' : '방송에 바로 적용해보세요!'}
+          방송에 바로 적용해보세요!
         </span>
       </div>
       <div className="url-controls">
-        <label htmlFor={graph ? 'graph-url' : 'ranking-url'}>
+        <label htmlFor={inputId}>
           URL{' '}
           <CircleHelp
             size={13}
@@ -82,7 +80,7 @@ export default function UrlCard({ graph = false, url }) {
         <div className="url-field">
           <Link2 size={16} />
           <input
-            id={graph ? 'graph-url' : 'ranking-url'}
+            id={inputId}
             value={url}
             readOnly
             onFocus={(event) => event.target.select()}

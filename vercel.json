@@ -3,6 +3,10 @@
     {
       "source": "/widget/ranking/:login_id",
       "destination": "/index.html"
+    },
+    {
+      "source": "/widget/graph/:login_id",
+      "destination": "/index.html"
     }
   ]
 }
